@@ -181,7 +181,7 @@ dialog::backdrop{background:rgba(10,5,2,.78)}
 </div></dialog>
 </div>
 
-<script type="application/json" id="data">{"videos":[{"v":"f42e551650fcbbf00e686314b221abc7","p":"2869bb98ac927933b772fd369f160509","c":"pc"},{"v":"b583a8d622b4863c238a566c92ac2c19","p":"75e4b2c6606ea40ee83c00ec9d04a3c4","c":"mobile"}],"prices":{"pc":"10$","mobile":"5$"},"wa":"9647753833600","tg":"EQ_KO"}</script>
+<script type="application/json" id="data">{"videos":[{"v":"videos/pc/1.mp4","c":"pc"},{"v":"videos/mobile/1.mp4","c":"mobile"}],"prices":{"pc":"10$","mobile":"5$"},"wa":"9647753833600","tg":"EQ_KO"}</script>
 <script id="code">
 var $=function(i){return document.getElementById(i)};
 var SHELL_HTML=$("shell").innerHTML;
@@ -203,8 +203,8 @@ function buildDoc(){
   return '<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>'+HEAD_STYLE+'</style></head><body>'+content+'</body></html>';
 }
 function save(){return art.publish(buildDoc())}
-var EXT={"f42e551650fcbbf00e686314b221abc7": ".mp4", "2869bb98ac927933b772fd369f160509": ".jpg", "75e4b2c6606ea40ee83c00ec9d04a3c4": ".jpg", "b583a8d622b4863c238a566c92ac2c19": ".mp4", "f292b406831f7a300233d46ecf2407a9": ".png"};function vsrc(id){return "assets/"+id+(EXT[id]||"")}
-function mkVideo(v,muted){var m=document.createElement("video");m.muted=muted;m.loop=true;m.playsInline=true;m.preload="none";m.setAttribute("playsinline","");if(muted)m.setAttribute("muted","");if(v.p)m.poster=vsrc(v.p);m.dataset.src=vsrc(v.v);return m}
+function vsrc(p){return encodeURI(p)}
+function mkVideo(v,muted){var m=document.createElement("video");m.muted=muted;m.loop=true;m.playsInline=true;m.preload="none";m.setAttribute("playsinline","");if(muted)m.setAttribute("muted","");if(v.p)m.poster=vsrc(v.p);m.dataset.src=vsrc(v.v)+"#t=0.1";return m}
 function watch(el){if(io)io.observe(el);else{var m=el.querySelector("video");if(m){m.src=m.dataset.src;m.play&&m.play().catch(function(){})}}}
 
 function render(){
@@ -289,7 +289,20 @@ $("admbtn").onclick=function(){fillAdmin();say("");if(adm.showModal)adm.showModa
 $("ax").onclick=function(){adm.close?adm.close():adm.removeAttribute("open")};
 adm.addEventListener("click",function(e){if(e.target===adm)adm.close()});
 
-render();
+function loadList(){
+  var owner=location.hostname.split(".")[0],repo=location.pathname.split("/")[1];
+  if(!/github\.io$/.test(location.hostname)||!repo)return;
+  var key="zh_list_v1",now=Date.now();
+  function apply(l){S.videos=l;render()}
+  try{var c=JSON.parse(localStorage.getItem(key)||"null");if(c&&now-c.t<180000){apply(c.l);return}}catch(e){}
+  fetch("https://api.github.com/repos/"+owner+"/"+repo+"/git/trees/main?recursive=1").then(function(r){return r.ok?r.json():null}).then(function(j){
+    if(!j||!j.tree)return;var l=[];
+    j.tree.forEach(function(f){var m=/^videos\/(pc|mobile|gifts)\/[^\/]+\.(mp4|webm)$/i.exec(f.path);if(m&&f.type==="blob")l.push({v:f.path,c:m[1].toLowerCase()})});
+    l.sort(function(a,b){return a.v.localeCompare(b.v,undefined,{numeric:true})});
+    try{localStorage.setItem(key,JSON.stringify({t:now,l:l}))}catch(e){}
+    apply(l)}).catch(function(){})
+}
+render();loadList();
 (async function(){
   try{
     if(!window.claude||!claude.use)return;
