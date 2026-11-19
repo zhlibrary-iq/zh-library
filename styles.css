@@ -275,3 +275,14 @@ button,input,textarea,select{font:inherit}
   *,*::before,*::after{animation:none!important;transition:none!important}
   .js .reveal{opacity:1;transform:none}
 }
+
+/* Admin content management */
+.admin-manage{margin-top:18px;padding-top:15px;border-top:1px solid rgba(255,255,255,.14)}
+.admin-manage h3{font-size:14px;color:var(--cream);margin:0 0 10px}
+.admin-design-list{display:flex;flex-direction:column;gap:8px}
+.admin-design-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px}
+.admin-design-info{display:flex;flex-direction:column;gap:4px;min-width:0}
+.admin-design-info strong{font-size:12px;overflow-wrap:anywhere;color:var(--cream)}
+.admin-design-info small,.admin-empty{font-size:11px;color:#c7b59d}
+.admin-delete{flex:0 0 auto;border:1px solid rgba(220,90,75,.5);background:rgba(180,55,45,.15);color:#ffb2a8;border-radius:8px;padding:7px 10px;cursor:pointer;font:inherit;font-size:12px}
+.admin-delete:disabled{opacity:.55;cursor:wait}
