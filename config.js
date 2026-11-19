@@ -1,5 +1,4 @@
-// Fill these values after creating a Supabase project. Leave blank to preview the site without a backend.
 window.SITE_CONFIG = {
-  SUPABASE_URL: '',
-  SUPABASE_ANON_KEY: ''
+  SUPABASE_URL: 'https://ghbarlvdbkianlmngfgt.supabase.co',
+  SUPABASE_ANON_KEY: 'sb_publishable_njGfoY3EtqJXJ2o1hRtaqA_1bvjOgIT'
 };
