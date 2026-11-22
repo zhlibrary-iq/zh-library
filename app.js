@@ -7,7 +7,7 @@
   const PRICES={pc:'$10',mobile:'$5',gifts:'$15',banners:'حسب الطلب',static:'حسب الطلب'};
   const priceOf=item=>PRICES[item.category]||item.price||'';
   const MAX_FILES=10;
-  const PAGE=12;
+  const PAGE=matchMedia('(max-width:760px)').matches?6:12;
   const state = {items:[],ads:[],reviews:[],filter:'all',rating:0,user:null,limit:PAGE};
   const $ = (s)=>document.querySelector(s);
   const escapeHTML = (v='') => String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -23,9 +23,14 @@
     }
     if(!item.url) return `<div class="placeholder-art"><div class="avatar"><i></i></div><span class="tag">${escapeHTML(item.display||'ZH')}</span></div>`;
     const url=escapeHTML(item.url),type=(item.file_type||'').toLowerCase();
-    if(type.startsWith('video/')) return `<video src="${url}" ${preview?'muted autoplay loop playsinline':'controls'}></video>`;
-    return `<img src="${url}" alt="${escapeHTML(item.title)}" loading="lazy" />`;
+    if(type.startsWith('video/')) return preview?`<video data-src="${url}" muted loop playsinline preload="none"></video>`:`<video src="${url}" controls autoplay playsinline></video>`;
+    return `<img src="${url}" alt="${escapeHTML(item.title)}" loading="lazy" decoding="async" />`;
   };
+  // Previews load/play only while on screen (keeps the page light on phones)
+  const vidOn=v=>{if(!v.getAttribute('src')&&v.dataset.src)v.src=v.dataset.src;const p=v.play();if(p&&p.catch)p.catch(()=>{})};
+  const vidOff=v=>{v.pause();if(v.getAttribute('src')){v.removeAttribute('src');v.load()}};
+  const vidIO='IntersectionObserver' in window?new IntersectionObserver(es=>es.forEach(en=>en.isIntersecting?vidOn(en.target):vidOff(en.target)),{rootMargin:'120px'}):null;
+  const watchVideos=()=>{if(vidIO)vidIO.disconnect();document.querySelectorAll('video[data-src]').forEach(v=>{if(v.closest('.flow-card'))return;vidIO?vidIO.observe(v):vidOn(v)})};
   const card = (item, latest=false) => `<article class="work-card" data-id="${escapeHTML(item.id)}" tabindex="0" role="button" aria-label="عرض ${escapeHTML(item.title)}"><div class="work-media">${latest&&isNew(item)?'<span class="new-tag">NEW / جديد</span>':''}${formatMedia(item,true)}</div><div class="work-meta"><div>${item.title?`<div class="work-title">${escapeHTML(item.title)}</div>`:''}<div class="work-category">${escapeHTML(categories[item.category]||'تصميم')}</div></div><div class="work-price">${escapeHTML(priceOf(item))}</div></div></article>`;
   const renderItems = () => {
     renderFlow();
@@ -36,6 +41,7 @@
     $('#galleryGrid').innerHTML=filtered.length?filtered.slice(0,state.limit).map(i=>card(i)).join(''):'<div class="empty-state">ماكو أعمال بهذا القسم حالياً.</div>';
     const more=$('#loadMore');more.classList.toggle('hidden',filtered.length<=state.limit);more.textContent=`عرض المزيد (${filtered.length-state.limit})`;
     document.querySelectorAll('.filter').forEach(b=>b.classList.toggle('active',b.dataset.filter===state.filter));
+    watchVideos();
     document.querySelectorAll('.work-card').forEach(el=>{el.addEventListener('click',()=>openItem(el.dataset.id));el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openItem(el.dataset.id)}})});
   };
   const openItem = id => {const item=state.items.find(i=>String(i.id)===String(id));if(!item)return;$('#modalContent').innerHTML=formatMedia(item,false);$('#modalCaption').textContent=`${item.title?item.title+' — ':''}${categories[item.category]||'تصميم'} ${priceOf(item)}`;$('#designModal').classList.add('open');$('#designModal').setAttribute('aria-hidden','false')};
@@ -52,6 +58,7 @@
       el.style.opacity=show?String(1-a*.3):'0';el.style.pointerEvents=show?'auto':'none';
       el.style.zIndex=String(50-a);el.style.filter=a?`brightness(${1-a*.22})`:'none';
       el.classList.toggle('is-active',off===0);el.dataset.off=off;
+      const v=el.querySelector('video[data-src]');if(v){if(flow.visible!==false&&a<=2){if(!v.getAttribute('src'))v.src=v.dataset.src;if(a<=1){const p=v.play();if(p&&p.catch)p.catch(()=>{})}else v.pause()}else vidOff(v)}
     });
     document.querySelectorAll('#flowDots button').forEach((d,i)=>d.classList.toggle('on',i===flow.active));
   };
@@ -75,6 +82,7 @@
     box.addEventListener('pointerleave',()=>{x0=null});
     box.addEventListener('mouseenter',()=>clearInterval(flow.timer));box.addEventListener('mouseleave',flowPlay);
     window.addEventListener('resize',flowLayout);
+    if('IntersectionObserver' in window)new IntersectionObserver(es=>es.forEach(en=>{flow.visible=en.isIntersecting;flowLayout()})).observe(box);
   })();
   const demoItems=[
     {id:'demo-1',title:'',category:'pc',price:'$10',display:'PC',created_at:new Date(Date.now()-2*86400000).toISOString(),is_new:false},
