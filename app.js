@@ -4,8 +4,11 @@
   const hasBackend = Boolean(config.SUPABASE_URL && config.SUPABASE_ANON_KEY && window.supabase);
   const sb = hasBackend ? window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY) : null;
   const categories = {pc:'تصاميم PC',mobile:'تصاميم الموبايل',gifts:'هدايا مخصصة',banners:'بنرات وصور رومات',static:'تصاميم ثابتة'};
+  const PRICES={pc:'$10',mobile:'$5',gifts:'$15',banners:'حسب الطلب',static:'حسب الطلب'};
+  const priceOf=item=>PRICES[item.category]||item.price||'';
+  const MAX_FILES=10;
   const PAGE=12;
-  const state = {items:[],reviews:[],filter:'all',rating:0,user:null,limit:PAGE};
+  const state = {items:[],ads:[],reviews:[],filter:'all',rating:0,user:null,limit:PAGE};
   const $ = (s)=>document.querySelector(s);
   const escapeHTML = (v='') => String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const toast = (message) => {const el=$('#toast');el.textContent=message;el.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('show'),2800)};
@@ -23,7 +26,7 @@
     if(type.startsWith('video/')) return `<video src="${url}" ${preview?'muted autoplay loop playsinline':'controls'}></video>`;
     return `<img src="${url}" alt="${escapeHTML(item.title)}" loading="lazy" />`;
   };
-  const card = (item, latest=false) => `<article class="work-card" data-id="${escapeHTML(item.id)}" tabindex="0" role="button" aria-label="عرض ${escapeHTML(item.title)}"><div class="work-media">${latest&&isNew(item)?'<span class="new-tag">NEW / جديد</span>':''}${formatMedia(item,true)}</div><div class="work-meta"><div>${item.title?`<div class="work-title">${escapeHTML(item.title)}</div>`:''}<div class="work-category">${escapeHTML(categories[item.category]||'تصميم')}</div></div><div class="work-price">${escapeHTML(item.price||'')}</div></div></article>`;
+  const card = (item, latest=false) => `<article class="work-card" data-id="${escapeHTML(item.id)}" tabindex="0" role="button" aria-label="عرض ${escapeHTML(item.title)}"><div class="work-media">${latest&&isNew(item)?'<span class="new-tag">NEW / جديد</span>':''}${formatMedia(item,true)}</div><div class="work-meta"><div>${item.title?`<div class="work-title">${escapeHTML(item.title)}</div>`:''}<div class="work-category">${escapeHTML(categories[item.category]||'تصميم')}</div></div><div class="work-price">${escapeHTML(priceOf(item))}</div></div></article>`;
   const renderItems = () => {
     renderFlow();
     const activeItems=state.items.filter(i=>!isNew(i));
@@ -35,7 +38,7 @@
     document.querySelectorAll('.filter').forEach(b=>b.classList.toggle('active',b.dataset.filter===state.filter));
     document.querySelectorAll('.work-card').forEach(el=>{el.addEventListener('click',()=>openItem(el.dataset.id));el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openItem(el.dataset.id)}})});
   };
-  const openItem = id => {const item=state.items.find(i=>String(i.id)===String(id));if(!item)return;$('#modalContent').innerHTML=formatMedia(item,false);$('#modalCaption').textContent=`${item.title?item.title+' — ':''}${categories[item.category]||'تصميم'} ${item.price||''}`;$('#designModal').classList.add('open');$('#designModal').setAttribute('aria-hidden','false')};
+  const openItem = id => {const item=state.items.find(i=>String(i.id)===String(id));if(!item)return;$('#modalContent').innerHTML=formatMedia(item,false);$('#modalCaption').textContent=`${item.title?item.title+' — ':''}${categories[item.category]||'تصميم'} ${priceOf(item)}`;$('#designModal').classList.add('open');$('#designModal').setAttribute('aria-hidden','false')};
   const closeModal=()=>{$('#designModal').classList.remove('open');$('#designModal').setAttribute('aria-hidden','true');$('#modalContent').innerHTML=''};
   // ---- hero 3D flow
   const flow={items:[],active:0,timer:null,built:'',moved:false};
@@ -95,16 +98,94 @@
   $('#adminTrigger').addEventListener('click',()=>{panel.classList.toggle('open');panel.setAttribute('aria-hidden',String(!panel.classList.contains('open')))});
   $('#adminClose').addEventListener('click',()=>{panel.classList.remove('open');panel.setAttribute('aria-hidden','true')});
   const renderAdminDesigns=()=>{const box=$('#adminDesignList');if(!box)return;if(!state.user){box.innerHTML='<p class="admin-empty">سجّل الدخول لإدارة الأعمال.</p>';return}if(!state.items.length){box.innerHTML='<p class="admin-empty">ماكو أعمال مرفوعة حالياً.</p>';return}box.innerHTML=state.items.map(item=>`<div class="admin-design-row"><div class="admin-design-info"><strong>${escapeHTML(item.title||'تصميم بدون عنوان')}</strong><small>${escapeHTML(categories[item.category]||'تصميم')} · ${item.file_type==='youtube'?'YouTube':(String(item.file_type||'').startsWith('video/')?'فيديو':'صورة')}</small></div><button class="admin-delete" type="button" data-delete-id="${escapeHTML(item.id)}" aria-label="حذف التصميم">حذف 🗑️</button></div>`).join('')};
-  const setAdmin=logged=>{$('#loginForm').classList.toggle('hidden',logged);$('#uploadForm').classList.toggle('hidden',!logged);$('#adminStatus').textContent=logged?'تم تسجيل الدخول. ارفع تصميمك أو أدر أعمالك من الأسفل.':(hasBackend?'سجّل دخولك بحساب الإدارة لإضافة أعمال.':'الموقع يعمل بوضع المعاينة. إعداد Supabase مطلوب لرفع أعمال حقيقية وإظهارها للجميع.');renderAdminDesigns()};
+  // ---- rotating ad slot (replaces hero title while at least one active ad exists)
+  const ad={items:[],i:0,timer:null,built:''};
+  const safeLink=u=>/^https?:\/\//i.test(u||'')?u:'';
+  const adMedia=a=>{const url=escapeHTML(a.media_url);return String(a.file_type||'').startsWith('video/')?`<video src="${url}" muted loop playsinline preload="metadata"></video>`:`<img src="${url}" alt="إعلان" />`};
+  const adGo=n=>{const els=[...document.querySelectorAll('#adTrack .ad-item')];if(!els.length)return;ad.i=((n%els.length)+els.length)%els.length;els.forEach((el,k)=>{const on=k===ad.i;el.classList.toggle('on',on);const v=el.querySelector('video');if(v){if(on){try{v.currentTime=0}catch(_){}v.play().catch(()=>{})}else v.pause()}});document.querySelectorAll('#adDots button').forEach((d,k)=>d.classList.toggle('on',k===ad.i))};
+  const adPlay=()=>{clearInterval(ad.timer);if(matchMedia('(prefers-reduced-motion: reduce)').matches||ad.items.length<2)return;ad.timer=setInterval(()=>adGo(ad.i+1),10000)};
+  const renderAds=()=>{
+    const list=state.ads.filter(a=>a.active&&a.media_url).sort((a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0));
+    $('#adSlot').classList.toggle('hidden',!list.length);$('#heroCopy').classList.toggle('hidden',list.length>0);
+    const key=list.map(a=>a.id+a.media_url+(a.link_url||'')).join('|');if(key===ad.built)return;ad.built=key;ad.items=list;ad.i=0;clearInterval(ad.timer);
+    if(!list.length){$('#adTrack').innerHTML='';$('#adDots').innerHTML='';return}
+    $('#adTrack').innerHTML=list.map(a=>{const l=safeLink(a.link_url),inner=adMedia(a);return l?`<a class="ad-item" href="${escapeHTML(l)}" target="_blank" rel="noopener sponsored">${inner}</a>`:`<div class="ad-item">${inner}</div>`}).join('');
+    $('#adDots').innerHTML=list.length>1?list.map((_,k)=>`<button type="button" data-k="${k}" aria-label="إعلان ${k+1}"></button>`).join(''):'';
+    adGo(0);adPlay();
+  };
+  $('#adDots').addEventListener('click',e=>{const b=e.target.closest('[data-k]');if(!b)return;adGo(Number(b.dataset.k));adPlay()});
+  const renderAdminAds=()=>{const box=$('#adminAdList');if(!box)return;if(!state.user){box.innerHTML='';return}if(!state.ads.length){box.innerHTML='<p class="admin-empty">ماكو إعلانات حالياً — الموقع يعرض العنوان الأساسي.</p>';return}box.innerHTML=state.ads.map(a=>{const vid=String(a.file_type||'').startsWith('video/');const url=escapeHTML(a.media_url);return `<div class="admin-design-row"><div class="admin-design-info"><strong>${vid?'🎬 فيديو':'🖼️ صورة'} · ${a.active?'ظاهر':'مخفي'}</strong><small dir="ltr">${escapeHTML(a.link_url||'بدون رابط')}</small></div><div class="admin-row-actions"><button class="admin-toggle${a.active?'':' off'}" type="button" data-ad-toggle="${escapeHTML(a.id)}">${a.active?'إخفاء':'إظهار'}</button><button class="admin-delete" type="button" data-ad-delete="${escapeHTML(a.id)}" aria-label="حذف الإعلان">🗑️</button></div></div>`}).join('')};
+  const loadAds=async()=>{if(!sb){state.ads=[];renderAds();return}try{const {data,error}=await sb.from('ads').select('*').order('created_at',{ascending:true});if(error)throw error;state.ads=data||[]}catch(e){console.warn('ads table not ready',e);state.ads=[]}renderAds();renderAdminAds()};
+  const setAdmin=logged=>{$('#loginForm').classList.toggle('hidden',logged);$('#adminTools').classList.toggle('hidden',!logged);$('#adminStatus').textContent=logged?'تم تسجيل الدخول. ارفع تصميمك أو أدر أعمالك من الأسفل.':(hasBackend?'سجّل دخولك بحساب الإدارة لإضافة أعمال.':'الموقع يعمل بوضع المعاينة. إعداد Supabase مطلوب لرفع أعمال حقيقية وإظهارها للجميع.');renderAdminDesigns();renderAdminAds()};
   $('#adminDesignList').addEventListener('click',async e=>{const btn=e.target.closest('[data-delete-id]');if(!btn)return;if(!state.user){toast('سجّل الدخول أولاً');return}const item=state.items.find(x=>String(x.id)===btn.dataset.deleteId);if(!item)return;if(!confirm(`متأكد تريد حذف «${item.title||'هذا التصميم'}» نهائياً؟`))return;btn.disabled=true;btn.textContent='جارٍ الحذف…';try{if(item.storage_path){const {error:storageError}=await sb.storage.from('design-assets').remove([item.storage_path]);if(storageError)throw storageError}const {error}=await sb.from('designs').delete().eq('id',item.id);if(error)throw error;await loadItems();renderAdminDesigns();toast('تم حذف التصميم بنجاح')}catch(err){console.error(err);btn.disabled=false;btn.textContent='حذف 🗑️';toast('فشل الحذف: '+(err.message||'تحقق من الصلاحيات'))}});
-  if(!hasBackend){setAdmin(false);$('#loginForm').addEventListener('submit',e=>{e.preventDefault();toast('ربط Supabase مطلوب لتفعيل لوحة الإدارة')});$('#uploadForm').addEventListener('submit',e=>{e.preventDefault();toast('رفع الأعمال يحتاج ربط قاعدة البيانات')})}
+  const updatePrice=()=>{$('#designPriceShow').textContent=PRICES[$('#designCategory').value]||'—'};
+  const updateFileHint=()=>{const n=$('#designFile').files.length;$('#fileCount').textContent=n?`تم اختيار ${n} من ${MAX_FILES} ملفات.`:'ما تم اختيار ملفات.'};
+  $('#designCategory').addEventListener('change',updatePrice);updatePrice();
+  $('#designFile').addEventListener('change',()=>{if($('#designFile').files.length>MAX_FILES){$('#designFile').value='';toast(`الحد الأقصى ${MAX_FILES} ملفات بالمرة الوحدة، اختار أقل`)}updateFileHint()});
+  if(!hasBackend){setAdmin(false);$('#loginForm').addEventListener('submit',e=>{e.preventDefault();toast('ربط Supabase مطلوب لتفعيل لوحة الإدارة')});$('#uploadForm').addEventListener('submit',e=>{e.preventDefault();toast('رفع الأعمال يحتاج ربط قاعدة البيانات')});$('#adForm').addEventListener('submit',e=>{e.preventDefault();toast('الإعلانات تحتاج ربط قاعدة البيانات')})}
   else{
     sb.auth.getSession().then(({data})=>{state.user=data.session?.user||null;setAdmin(Boolean(state.user))});sb.auth.onAuthStateChange((_event,session)=>{state.user=session?.user||null;setAdmin(Boolean(state.user))});
     $('#loginForm').addEventListener('submit',async e=>{e.preventDefault();const {error}=await sb.auth.signInWithPassword({email:$('#adminEmail').value,password:$('#adminPassword').value});if(error)toast('فشل تسجيل الدخول: '+error.message);else toast('تم تسجيل الدخول')});
     $('#logoutButton').addEventListener('click',async()=>{await sb.auth.signOut();toast('تم تسجيل الخروج')});
-    $('#uploadForm').addEventListener('submit',async e=>{e.preventDefault();if(!state.user){toast('سجّل الدخول أولاً');return}const ytRaw=$('#designYoutube').value.trim();if(ytRaw){if(!ytId(ytRaw)){toast('رابط يوتيوب غير صحيح');return}const ytRow={title:$('#designTitle').value.trim(),category:$('#designCategory').value,price:$('#designPrice').value.trim(),url:ytRaw,file_type:'youtube',storage_path:null,is_new:$('#designIsNew').checked,created_at:new Date().toISOString()};const {error:ytErr}=await sb.from('designs').insert(ytRow);if(ytErr){toast('فشل حفظ التصميم: '+ytErr.message);return}e.target.reset();$('#designIsNew').checked=true;await loadItems();toast('تمت إضافة التصميم للموقع');return}const file=$('#designFile').files[0];if(!file){toast('حط رابط يوتيوب أو اختار ملف');return}const safe=file.name.replace(/[^\w.\-]/g,'_');const path=`${Date.now()}-${safe}`;toast('جاري رفع الملف…');const {data:up,error:upErr}=await sb.storage.from('design-assets').upload(path,file,{cacheControl:'3600',upsert:false});if(upErr){toast('فشل رفع الملف: '+upErr.message);return}const {data:pub}=sb.storage.from('design-assets').getPublicUrl(up.path);const fresh=$('#designIsNew').checked;const row={title:$('#designTitle').value.trim(),category:$('#designCategory').value,price:$('#designPrice').value.trim(),url:pub.publicUrl,file_type:file.type,storage_path:up.path,is_new:fresh,created_at:new Date().toISOString()};const {error}=await sb.from('designs').insert(row);if(error){await sb.storage.from('design-assets').remove([up.path]);toast('فشل حفظ بيانات التصميم: '+error.message);return}e.target.reset();$('#designIsNew').checked=true;await loadItems();toast('تمت إضافة التصميم للموقع')});
+    const ytRow=(category,price,url,fresh,title)=>({title,category,price,url,file_type:'youtube',storage_path:null,is_new:fresh,created_at:new Date().toISOString()});
+    $('#uploadForm').addEventListener('submit',async e=>{
+      e.preventDefault();if(!state.user){toast('سجّل الدخول أولاً');return}
+      const btn=$('#uploadBtn'),category=$('#designCategory').value,price=PRICES[category]||'',fresh=$('#designIsNew').checked;
+      const resetForm=()=>{e.target.reset();$('#designCategory').value=category;updateFileHint();updatePrice()};
+      const ytRaw=$('#designYoutube').value.trim();
+      if(ytRaw){
+        if(!ytId(ytRaw)){toast('رابط يوتيوب غير صحيح');return}
+        const {error}=await sb.from('designs').insert(ytRow(category,price,ytRaw,fresh,$('#designTitle').value.trim()));
+        if(error){toast('فشل حفظ التصميم: '+error.message);return}
+        resetForm();await loadItems();toast('تمت إضافة التصميم للموقع');return;
+      }
+      const files=[...$('#designFile').files];
+      if(!files.length){toast('حط رابط يوتيوب أو اختار ملفات');return}
+      if(files.length>MAX_FILES){toast(`الحد الأقصى ${MAX_FILES} ملفات بالمرة الوحدة`);return}
+      const title=files.length===1?$('#designTitle').value.trim():'';
+      btn.disabled=true;let ok=0;const failed=[];
+      for(let k=0;k<files.length;k++){
+        const file=files[k];btn.textContent=`جاري رفع ${k+1} من ${files.length}…`;
+        const safe=file.name.replace(/[^\w.\-]/g,'_'),path=`${Date.now()}-${k}-${safe}`;
+        const {data:up,error:upErr}=await sb.storage.from('design-assets').upload(path,file,{cacheControl:'3600',upsert:false});
+        if(upErr){failed.push(file.name);console.error(upErr);continue}
+        const {data:pub}=sb.storage.from('design-assets').getPublicUrl(up.path);
+        const row={title,category,price,url:pub.publicUrl,file_type:file.type,storage_path:up.path,is_new:fresh,created_at:new Date().toISOString()};
+        const {error}=await sb.from('designs').insert(row);
+        if(error){await sb.storage.from('design-assets').remove([up.path]);failed.push(file.name);console.error(error);continue}
+        ok++;
+      }
+      btn.disabled=false;btn.textContent='رفع التصميم';
+      if(ok)resetForm();await loadItems();
+      toast(failed.length?`تم رفع ${ok} وفشل ${failed.length}: ${failed.slice(0,2).join('، ')}`:(ok>1?`تمت إضافة ${ok} تصاميم للموقع`:'تمت إضافة التصميم للموقع'));
+    });
+    // ads admin
+    $('#adForm').addEventListener('submit',async e=>{
+      e.preventDefault();if(!state.user){toast('سجّل الدخول أولاً');return}
+      const file=$('#adFile').files[0];if(!file){toast('اختار صورة أو فيديو للإعلان');return}
+      const link=$('#adLink').value.trim();if(link&&!safeLink(link)){toast('الرابط لازم يبدأ بـ https://');return}
+      const btn=$('#adBtn');btn.disabled=true;btn.textContent='جاري رفع الإعلان…';
+      try{
+        const safe=file.name.replace(/[^\w.\-]/g,'_'),path=`ads/${Date.now()}-${safe}`;
+        const {data:up,error:upErr}=await sb.storage.from('design-assets').upload(path,file,{cacheControl:'3600',upsert:false});if(upErr)throw upErr;
+        const {data:pub}=sb.storage.from('design-assets').getPublicUrl(up.path);
+        const {error}=await sb.from('ads').insert({media_url:pub.publicUrl,file_type:file.type,link_url:link,storage_path:up.path,active:true});
+        if(error){await sb.storage.from('design-assets').remove([up.path]);throw error}
+        e.target.reset();await loadAds();toast('تمت إضافة الإعلان');
+      }catch(err){console.error(err);toast('فشل إضافة الإعلان: '+(err.message||'تأكد من تشغيل ملف SQL الجديد'))}
+      btn.disabled=false;btn.textContent='إضافة الإعلان';
+    });
+    $('#adminAdList').addEventListener('click',async e=>{
+      const t=e.target.closest('[data-ad-toggle]'),d=e.target.closest('[data-ad-delete]');if(!t&&!d)return;if(!state.user){toast('سجّل الدخول أولاً');return}
+      const id=(t||d).dataset.adToggle||(t||d).dataset.adDelete,a=state.ads.find(x=>String(x.id)===String(id));if(!a)return;
+      try{
+        if(t){const {error}=await sb.from('ads').update({active:!a.active}).eq('id',a.id);if(error)throw error;toast(a.active?'تم إخفاء الإعلان':'تم إظهار الإعلان')}
+        else{if(!confirm('متأكد تريد حذف هذا الإعلان نهائياً؟'))return;if(a.storage_path){const {error:se}=await sb.storage.from('design-assets').remove([a.storage_path]);if(se)throw se}const {error}=await sb.from('ads').delete().eq('id',a.id);if(error)throw error;toast('تم حذف الإعلان')}
+        await loadAds();
+      }catch(err){console.error(err);toast('فشلت العملية: '+(err.message||'تحقق من الصلاحيات'))}
+    });
   }
   const watch=()=>{const els=document.querySelectorAll('.reveal:not(.in)');if(!('IntersectionObserver' in window)){els.forEach(e=>e.classList.add('in'));return}const io=new IntersectionObserver(es=>es.forEach(en=>{if(en.isIntersecting){en.target.classList.add('in');io.unobserve(en.target)}}),{threshold:.12});els.forEach(e=>io.observe(e))};
   watch();
-  loadItems();loadReviews();
+  loadItems();loadReviews();loadAds();
 })();

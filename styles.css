@@ -78,10 +78,10 @@ button,input,textarea,select{font:inherit}
 .avatar i::after{content:"";position:absolute;left:50%;bottom:-18%;width:70%;aspect-ratio:1;border-radius:50%;transform:translateX(-50%);background:rgba(247,240,227,.82)}
 
 /* hero 3D flow */
-.flow{position:relative;height:430px;margin-top:18px;perspective:1400px;direction:ltr;user-select:none;-webkit-user-select:none;touch-action:pan-y;--w:264px}
+.flow{position:relative;height:340px;margin-top:18px;perspective:1400px;direction:ltr;user-select:none;-webkit-user-select:none;touch-action:pan-y;--w:264px}
 .flow-track{position:absolute;inset:0;transform-style:preserve-3d}
-.flow-card{position:absolute;left:50%;top:50%;width:var(--w);aspect-ratio:4/5;margin-left:calc(var(--w) / -2);margin-top:calc(var(--w) * -0.625);border-radius:22px;overflow:hidden;background:var(--coffee);border:1px solid rgba(220,183,135,.38);box-shadow:0 34px 60px -22px rgba(0,0,0,.8);cursor:pointer;backface-visibility:hidden;transition:transform .8s cubic-bezier(.2,.7,.2,1),opacity .8s,filter .8s}
-.flow-card>img,.flow-card>video,.flow-card>.placeholder-art{width:100%;height:100%;object-fit:cover;display:grid}
+.flow-card{position:absolute;left:50%;top:50%;width:var(--w);aspect-ratio:1/1;margin-left:calc(var(--w) / -2);margin-top:calc(var(--w) * -0.5);border-radius:22px;overflow:hidden;background:var(--coffee);border:1px solid rgba(220,183,135,.38);box-shadow:0 34px 60px -22px rgba(0,0,0,.8);cursor:pointer;backface-visibility:hidden;transition:transform .8s cubic-bezier(.2,.7,.2,1),opacity .8s,filter .8s}
+.flow-card>img,.flow-card>video,.flow-card>.placeholder-art{width:100%;height:100%;object-fit:contain;display:grid}
 .flow-card>.placeholder-art{position:relative;place-items:center;background:radial-gradient(circle at 50% 42%,#4a3322,#1b120c 72%)}
 .flow-card .placeholder-art .avatar{--s:52%}
 .flow-card.is-active{border-color:var(--gold);box-shadow:0 40px 70px -20px rgba(0,0,0,.85),0 0 60px -10px rgba(220,183,135,.35)}
@@ -124,8 +124,7 @@ button,input,textarea,select{font:inherit}
 .work-card{background:#fffaf0;border:1px solid var(--line-light);border-radius:18px;overflow:hidden;cursor:pointer;transition:transform .3s,box-shadow .3s,border-color .3s}
 .work-card:hover{transform:translateY(-6px);box-shadow:0 22px 40px -18px rgba(58,40,27,.45);border-color:var(--tan)}
 .work-media{position:relative;aspect-ratio:1;background:var(--coffee);overflow:hidden;display:grid;place-items:center}
-.latest-grid .work-media{aspect-ratio:16/10}
-.work-media img,.work-media video{width:100%;height:100%;object-fit:cover;display:block}
+.work-media img,.work-media video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block}
 .work-media .placeholder-art{position:relative;width:100%;height:100%;display:grid;place-items:center;background:radial-gradient(circle at 50% 42%,#4a3322,#1b120c 72%)}
 .placeholder-art .avatar{position:relative;--s:46%;min-width:96px}
 .placeholder-art .tag{position:absolute;bottom:16px;inset-inline:0;text-align:center;font:600 15px var(--latin);letter-spacing:4px;color:var(--tan)}
@@ -255,7 +254,7 @@ button,input,textarea,select{font:inherit}
   .section{padding-block:68px}
   .section-heading{flex-direction:column;align-items:flex-start;gap:10px}
   .hero-prices{gap:24px}
-  .flow{height:360px;--w:206px;margin-top:30px}
+  .flow{height:270px;--w:216px;margin-top:26px}
   .flow-nav{width:38px;height:38px;margin-top:-19px;font-size:24px}
   .hero .eyebrow{font-size:15px;letter-spacing:1px;gap:8px}
   .hero .eyebrow::before,.hero .eyebrow::after{width:18px}
@@ -276,6 +275,18 @@ button,input,textarea,select{font:inherit}
   .js .reveal{opacity:1;transform:none}
 }
 
+/* ad slot (replaces hero title when ads exist) */
+.ad-slot{position:relative;width:min(860px,100%);margin:0 auto 6px;aspect-ratio:5/2;border-radius:22px;overflow:hidden;background:var(--coffee);border:1px solid rgba(220,183,135,.38);box-shadow:0 30px 60px -26px rgba(0,0,0,.85)}
+.ad-item{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .9s ease;display:block}
+.ad-item.on{opacity:1;pointer-events:auto}
+.ad-item img,.ad-item video{width:100%;height:100%;object-fit:cover;display:block}
+.ad-item[href]{cursor:pointer}
+.ad-badge{position:absolute;top:10px;inset-inline-start:10px;z-index:3;font:600 11px var(--display);letter-spacing:.5px;padding:3px 10px;border-radius:999px;background:rgba(23,16,11,.72);color:var(--gold);border:1px solid rgba(220,183,135,.4);pointer-events:none}
+.ad-dots{position:absolute;bottom:10px;inset-inline:0;z-index:3;display:flex;justify-content:center;gap:7px;direction:ltr}
+.ad-dots button{width:7px;height:7px;border-radius:50%;border:0;padding:0;background:rgba(255,255,255,.5);cursor:pointer;transition:width .3s,background .3s}
+.ad-dots button.on{width:22px;border-radius:8px;background:var(--gold)}
+@media (max-width:760px){.ad-slot{border-radius:16px}}
+
 /* Admin content management */
 .admin-manage{margin-top:18px;padding-top:15px;border-top:1px solid rgba(255,255,255,.14)}
 .admin-manage h3{font-size:14px;color:var(--cream);margin:0 0 10px}
@@ -286,3 +297,13 @@ button,input,textarea,select{font:inherit}
 .admin-design-info small,.admin-empty{font-size:11px;color:#c7b59d}
 .admin-delete{flex:0 0 auto;border:1px solid rgba(220,90,75,.5);background:rgba(180,55,45,.15);color:#ffb2a8;border-radius:8px;padding:7px 10px;cursor:pointer;font:inherit;font-size:12px}
 .admin-delete:disabled{opacity:.55;cursor:wait}
+
+.admin-hint{font-size:11px;color:#c7b59d;margin:-4px 0 0}
+.price-fixed{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-radius:10px;background:rgba(255,255,255,.06);border:1px dashed rgba(255,255,255,.2);font-size:13px;color:#d5c4ad}
+.price-fixed b{font:600 20px var(--latin);color:var(--gold)}
+.admin-toggle{flex:0 0 auto;border:1px solid rgba(220,183,135,.5);background:rgba(220,183,135,.12);color:var(--gold);border-radius:8px;padding:7px 10px;cursor:pointer;font:inherit;font-size:12px}
+.admin-toggle.off{border-color:rgba(255,255,255,.2);background:transparent;color:#a8947d}
+.admin-row-actions{display:flex;gap:6px;flex:0 0 auto}
+.admin-thumb{width:46px;height:30px;border-radius:6px;object-fit:cover;background:#000;flex:0 0 auto}
+.admin-design-row .admin-design-info{flex:1}
+.admin-tools .admin-form{margin-top:0}
