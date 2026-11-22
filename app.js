@@ -30,7 +30,7 @@
   const vidOn=v=>{if(!v.getAttribute('src')&&v.dataset.src)v.src=v.dataset.src;const p=v.play();if(p&&p.catch)p.catch(()=>{})};
   const vidOff=v=>{v.pause();if(v.getAttribute('src')){v.removeAttribute('src');v.load()}};
   const vidIO='IntersectionObserver' in window?new IntersectionObserver(es=>es.forEach(en=>en.isIntersecting?vidOn(en.target):vidOff(en.target)),{rootMargin:'120px'}):null;
-  const watchVideos=()=>{if(vidIO)vidIO.disconnect();document.querySelectorAll('video[data-src]').forEach(v=>{if(v.closest('.flow-card'))return;vidIO?vidIO.observe(v):vidOn(v)})};
+  const watchVideos=()=>{if(vidIO)vidIO.disconnect();document.querySelectorAll('video[data-src]').forEach(v=>{if(v.closest('.flow-card,.ad-item'))return;vidIO?vidIO.observe(v):vidOn(v)})};
   const card = (item, latest=false) => `<article class="work-card" data-id="${escapeHTML(item.id)}" tabindex="0" role="button" aria-label="عرض ${escapeHTML(item.title)}"><div class="work-media">${latest&&isNew(item)?'<span class="new-tag">NEW / جديد</span>':''}${formatMedia(item,true)}</div><div class="work-meta"><div>${item.title?`<div class="work-title">${escapeHTML(item.title)}</div>`:''}<div class="work-category">${escapeHTML(categories[item.category]||'تصميم')}</div></div><div class="work-price">${escapeHTML(priceOf(item))}</div></div></article>`;
   const renderItems = () => {
     renderFlow();
@@ -47,7 +47,7 @@
   const openItem = id => {const item=state.items.find(i=>String(i.id)===String(id));if(!item)return;$('#modalContent').innerHTML=formatMedia(item,false);$('#modalCaption').textContent=`${item.title?item.title+' — ':''}${categories[item.category]||'تصميم'} ${priceOf(item)}`;$('#designModal').classList.add('open');$('#designModal').setAttribute('aria-hidden','false')};
   const closeModal=()=>{$('#designModal').classList.remove('open');$('#designModal').setAttribute('aria-hidden','true');$('#modalContent').innerHTML=''};
   // ---- hero 3D flow
-  const flow={items:[],active:0,timer:null,built:'',moved:false};
+  const flow={items:[],active:0,timer:null,built:'',moved:false,ready:false};
   const flowLayout=()=>{
     const cards=[...document.querySelectorAll('#flowTrack .flow-card')],n=cards.length;if(!n)return;
     const w=cards[0].offsetWidth,step=w*0.66,reach=Math.min(2,Math.floor(n/2));
@@ -58,7 +58,7 @@
       el.style.opacity=show?String(1-a*.3):'0';el.style.pointerEvents=show?'auto':'none';
       el.style.zIndex=String(50-a);el.style.filter=a?`brightness(${1-a*.22})`:'none';
       el.classList.toggle('is-active',off===0);el.dataset.off=off;
-      const v=el.querySelector('video[data-src]');if(v){if(flow.visible!==false&&a<=2){if(!v.getAttribute('src'))v.src=v.dataset.src;if(a<=1){const p=v.play();if(p&&p.catch)p.catch(()=>{})}else v.pause()}else vidOff(v)}
+      const v=el.querySelector('video[data-src]');if(v){if(flow.ready&&flow.visible!==false&&a<=1){if(!v.getAttribute('src')){v.preload=a===0?'auto':'metadata';v.src=v.dataset.src}if(a===0){const p=v.play();if(p&&p.catch)p.catch(()=>{})}else v.pause()}else vidOff(v)}
     });
     document.querySelectorAll('#flowDots button').forEach((d,i)=>d.classList.toggle('on',i===flow.active));
   };
@@ -82,6 +82,9 @@
     box.addEventListener('pointerleave',()=>{x0=null});
     box.addEventListener('mouseenter',()=>clearInterval(flow.timer));box.addEventListener('mouseleave',flowPlay);
     window.addEventListener('resize',flowLayout);
+    // start hero videos only after the page finished loading, so text/buttons/ad appear first
+    const flowReady=()=>setTimeout(()=>{flow.ready=true;flowLayout()},400);
+    if(document.readyState==='complete')flowReady();else window.addEventListener('load',flowReady);
     if('IntersectionObserver' in window)new IntersectionObserver(es=>es.forEach(en=>{flow.visible=en.isIntersecting;flowLayout()})).observe(box);
   })();
   const demoItems=[
@@ -109,8 +112,8 @@
   // ---- rotating ad slot (replaces hero title while at least one active ad exists)
   const ad={items:[],i:0,timer:null,built:''};
   const safeLink=u=>/^https?:\/\//i.test(u||'')?u:'';
-  const adMedia=a=>{const url=escapeHTML(a.media_url);return String(a.file_type||'').startsWith('video/')?`<video src="${url}" muted loop playsinline preload="metadata"></video>`:`<img src="${url}" alt="إعلان" />`};
-  const adGo=n=>{const els=[...document.querySelectorAll('#adTrack .ad-item')];if(!els.length)return;ad.i=((n%els.length)+els.length)%els.length;els.forEach((el,k)=>{const on=k===ad.i;el.classList.toggle('on',on);const v=el.querySelector('video');if(v){if(on){try{v.currentTime=0}catch(_){}v.play().catch(()=>{})}else v.pause()}});document.querySelectorAll('#adDots button').forEach((d,k)=>d.classList.toggle('on',k===ad.i))};
+  const adMedia=a=>{const url=escapeHTML(a.media_url);return String(a.file_type||'').startsWith('video/')?`<video data-src="${url}" muted loop playsinline preload="none"></video>`:`<img src="${url}" alt="إعلان" />`};
+  const adGo=n=>{const els=[...document.querySelectorAll('#adTrack .ad-item')];if(!els.length)return;ad.i=((n%els.length)+els.length)%els.length;els.forEach((el,k)=>{const on=k===ad.i;el.classList.toggle('on',on);const v=el.querySelector('video');if(v){if(on){if(!v.getAttribute('src'))v.src=v.dataset.src;try{v.currentTime=0}catch(_){}const p=v.play();if(p&&p.catch)p.catch(()=>{})}else vidOff(v)}});document.querySelectorAll('#adDots button').forEach((d,k)=>d.classList.toggle('on',k===ad.i))};
   const adPlay=()=>{clearInterval(ad.timer);if(matchMedia('(prefers-reduced-motion: reduce)').matches||ad.items.length<2)return;ad.timer=setInterval(()=>adGo(ad.i+1),10000)};
   const renderAds=()=>{
     const list=state.ads.filter(a=>a.active&&a.media_url).sort((a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0));
